@@ -11,7 +11,7 @@ REPORT_GAS=true npx hardhat test
 npx hardhat node
 npx hardhat ignition deploy ./ignition/modules/Lock.js
 ```
-# npm&hardhat
+# 第一部分 npm&hardhat使用
 
 1、安装NVM环境，NVM是node管理器可以安装多个版本的node，并切换使用
 nvm install 20 --安装版本为v20.18.0的node
@@ -71,3 +71,24 @@ npm install -D hardhat-deploy
 ![alt text](./images/image-10.png)
 此时就有deploy命令，可以直接使用npx hardhat deploy进行部署
 ![alt text](./images/image-11.png)
+
+# 第二部分 代码技巧
+1、test脚本中如何获取合约中的状态变量
+```js
+//合约中public类型的状态变量支持getter()特性，可以直接使用部署合约的实例调用如：vault.token()
+contract Vault {
+    //这里的token属性是public，自带getter()方法
+    IERC20 public immutable token;
+    uint256 public totalSupply;
+    mapping(address => uint256) public balanceOf;
+
+    constructor(address _token) {
+        token = IERC20(_token);
+    }
+```
+2、test脚本中环境设置（包括部署合约、获取账户信息及创建合约实例）
+```js
+//这行代码是获取合约部署的相关信息，包含abi、address等等
+const tokenDeployment = await deployments.get("Mytoken");
+```
+![alt text](image.png)
