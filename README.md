@@ -11,6 +11,7 @@ REPORT_GAS=true npx hardhat test
 npx hardhat node
 npx hardhat ignition deploy ./ignition/modules/Lock.js
 ```
+<!-- TOC -->
 # 第一部分 npm&hardhat使用
 
 1、安装NVM环境，NVM是node管理器可以安装多个版本的node，并切换使用
