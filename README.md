@@ -129,7 +129,7 @@ filebase是基于ipfs的去中心化存储平台
 ### NFT跨链代码演示
 通过第二种方法来实现跨链操作
 在第一节中我们已经在sepolia链上mint了一个NFT，根据第二种方式，我们也同样需要在B链上mint一个Wrapped的NFT
-1、新建一个WrappedMyToken合约
+1、新建一个WrappedMyToken合约  
 
 1.1集成MyToken合约
 
