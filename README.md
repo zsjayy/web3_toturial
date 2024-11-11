@@ -93,3 +93,40 @@ contract Vault {
 const tokenDeployment = await deployments.get("Mytoken");
 ```
 ![alt text](image.png)
+
+# 第三部分 跨链应用
+## 第一节 去中心化存储
+### 步骤
+1、进入https://www.openzeppelin.com/生成一个ERC721合约
+2、进入filebase上传自己的nft图片和metaData的json文件
+3、取到ipfs的URI替换合约中的URI
+4、nft铸造，
+4.1部署合约并使用safeMint函数铸造合约，此时登录在opensea测试网上就可以查看到刚才铸造的nft
+![alt text](image-3.png)，其中这里展示信息就是json文件中的内容
+opensea是nft交易平台
+testnets.opensea是测试网络环境
+![alt text](image-1.png)
+ipfs（是一种网络协议）是最大的一个去中心化存储平台，可以把nft的metedata信息存在这里
+filebase是基于ipfs的去中心化存储平台
+## 第二节 NFT跨链原理
+（由于前面我连接的是sepolia网络，所以是在sepolia链上）
+思路：先将nft在原有链上锁定，再新的链上释放（mint）出来一个相同的地址
+问题：如何保证从A到B链的信息准确，没有人篡改（需要公信力），最好是借助成熟的跨链协议
+#### 跨链协议-chainlink CCIP
+**跨链的原理**
+![alt text](image-4.png)
+**跨链的方式**
+第一种
+![alt text](image-5.png)
+第二种
+![alt text](image-6.png)
+跨链流程
+![alt text](image-7.png)
+### NFT跨链代码演示
+通过第二种方法来实现跨链操作
+在第一节中我们已经在sepolia链上mint了一个NFT，根据第二种方式，我们也同样需要在B链上mint一个Wrapped的NFT
+1、新建一个WrappedMyToken合约
+1.1集成MyToken合约
+1.2完成构造函数
+1.3修改mint函数（对固定tokenId进行铸造，而不是进行自增）
+2、创建NFT POOL
