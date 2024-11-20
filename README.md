@@ -139,4 +139,15 @@ filebase是基于ipfs的去中心化存储平台
 
 2、创建NFT POOL
 
+2.1创建MyToken代币合约和LockAndRelease池子
+
+2.2创建WrappedMyToken代币合约和BurnAndMint池子
+
+2.3原链上的nft通过LockAndRelease中lockAndSend方法，将tokenId和owner发送给目标链
+
+2.4目标链通过BurnAndMint中ccipReceive方法，接收tokenId和owner信息并进行mint
+
+2.5以上几步实现第一步
+![alt text](image-8.png)
+
 <!-- TOC -->
