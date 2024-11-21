@@ -129,6 +129,7 @@ filebase是基于ipfs的去中心化存储平台
 ### NFT跨链代码演示
 通过第二种方法来实现跨链操作
 在第一节中我们已经在sepolia链上mint了一个NFT，根据第二种方式，我们也同样需要在B链上mint一个Wrapped的NFT
+
 1、新建一个WrappedMyToken合约  
 
 1.1集成MyToken合约
@@ -137,7 +138,7 @@ filebase是基于ipfs的去中心化存储平台
 
 1.3修改mint函数（对固定tokenId进行铸造，而不是进行自增）
 
-2、创建NFT POOL
+2、创建NFT POOL--完成lock--》mint，burn--》unlock
 
 2.1创建MyToken代币合约和LockAndRelease池子
 
@@ -147,7 +148,15 @@ filebase是基于ipfs的去中心化存储平台
 
 2.4目标链通过BurnAndMint中ccipReceive方法，接收tokenId和owner信息并进行mint
 
-2.5以上几步实现第一步
+2.5以上几步实现第一步（lock--》mint）
 ![alt text](image-8.png)
 
+2.6目标链通过burnAndSendNFT()，将wnft转移到当前合约中，并且进行burn
+
+2.7burn后将tokenId的相关数据转移到lockAndRelase合约中
+
+2.8lockAndRelase合约接收到数据信息后，将tokenId从当前合约转移到newOwner中
+
+2.9以上几步实现第二步（burn--》unlock）
+![alt text](image-9.png)
 <!-- TOC -->
