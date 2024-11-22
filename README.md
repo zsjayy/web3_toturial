@@ -159,4 +159,52 @@ filebase是基于ipfs的去中心化存储平台
 
 2.9以上几步实现第二步（burn--》unlock）
 ![alt text](image-9.png)
+至此完成合约的编码
+
+3、部署约合
+
+3.1分别创建4个部署脚本，对应nft、wnft、poolLockAndRelease,poolBurnAndMint
+
+3.2安装hardhat所需要的插件
+```shell
+npm install --save-dev @nomicfoundation/hardhat-ethers ethers hardhat-deploy hardhat-deploy-ethers
+```
+3.3hardhat.config.js中引入对应包
+```shell
+require("@nomicfoundation/hardhat-ethers");
+require("hardhat-deploy");
+require("hardhat-deploy-ethers");
+```
+3.4编写部署脚本
+3.4.1编写MyToken合约部署脚本
+```js
+moudle.exports = async({getNameAccounts, deployments}) => {
+    const firstAccount = await getNameAccounts()
+    const {deploy, log} = await deployments()
+
+    log("nft contract is deploying")
+
+    await deploy("MyToken",{
+        contract: "MyToken",
+        from:firstAccount,
+        args:["MyToken", "MT"],
+        log: true
+    })
+    log("nft contract deployed successfully")
+}
+
+moudle.exports.tags["sourcechain","all"]
+```
+3.4.2编写NFTPoolLockAndRelease合约部署脚本
+由于改合约的构造函数中所需的参数本地无法提供，所以需要安装一个本地的chainlink
+
+3.5chainlink-local
+3.5.1chainlink-local安装
+```shell
+npm install -D @chainlink/local
+```
+3.5.2编写合约CCIPSimulator.sol引入CCIP的mock合约CCIPLocalSimulator
+![alt text](image-10.png)
+3.5.3编写CCIPSimulator.sol合约的部署脚本
+
 <!-- TOC -->
