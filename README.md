@@ -103,7 +103,7 @@ const tokenAddr = await tokenDeployment.address;
 ```
 ![alt text](image-11.png)
 
-4、一个完整的部署脚本（参考用）
+4、一个完整的部署脚本（参考用02_deploy_pool_lock_and_release.js）
 ```js
 const{ getNamedAccounts } = require("hardhat")
 moudle.exports = async({getNamedAccounts, deployments}) => {
@@ -133,6 +133,38 @@ moudle.exports = async({getNamedAccounts, deployments}) => {
 
 moudle.exports.tags = ["sourcechain","all"]
 ```
+5、一个完成的测试脚本
+
+6、部署脚本中的ethers.getContractAt()和测试脚本中的ethers.getCotract()有什么区别
+ethers.getContractAt()是用于获取已经部署的合约实例args(name,address)，与其进行交互，比如部署脚本中获取前一个部署合约的地址
+```js
+//用于获取前面已经部署的MyToken合约，并填入传参args：合约名，合约地址
+const nftDeployment = await deployments.get("MyToken")
+const nft = await ethers.getContractAt("MyToken", nftDeployment.address)
+```
+ethers.getContract()是用于部署新的合约实例，相当于ethers.getContractFactory()，即通过合约工厂部署一个新的合约实例
+```js
+//谁去部署的
+const nft = await ethers.getContract("Mytoken", firstAccount)
+//相当于
+const contractFactory = await ethers.getContractFactory("MyContract");  
+const contract = await contractFactory.deploy(); // 部署合约并获得实例
+```
+7、部署脚本deploy和测试脚本test中如何获取合约地址
+部署脚本deploy
+```js
+//先创建一个合约实例
+const nftDeployment = await deployments.get("MyToken")
+//获取合约地址
+const nftAddr = nftDeployment.address
+```
+测试脚本test
+```js
+//先创建一个合约实例
+const nftDeployment = await ethers.getContract("MyToken",firstAccout)
+const nftAddr = nftDeployment.target
+```
+
 
 # 第三部分 跨链应用
 ## 第一节 去中心化存储
@@ -244,16 +276,19 @@ moudle.exports.tags["sourcechain","all"]
 ```shell
 npm install -D @chainlink/local
 ```
-3.5.2编写合约CCIPSimulator.sol引入CCIP的mock合约CCIPLocalSimulator
+3.6编写跨链应用合约
+3.6.1编写合约CCIPSimulator.sol引入CCIP的mock合约CCIPLocalSimulator
 ![alt text](image-10.png)
-3.5.3编写CCIPSimulator.sol合约的部署脚本
-3.5.4编写MyToken合约的部署脚本
-3.5.5编写NFTPoolLockAndRelease合约的部署脚本
+3.6.2编写CCIPSimulator.sol合约的部署脚本
+3.6.3编写MyToken合约的部署脚本
+3.6.4编写NFTPoolLockAndRelease合约的部署脚本
 由于需要三个参数_router、_link、_nftAddr，正好由编写的CCIPSimulator合约引入的mock合约CCIPLocalSimulator提供
 ![alt text](image-12.png)
-3.5.6编写WNFT
-3.5.7编写NFTPoolBurnAndMint合约的部署脚本
+3.6.5编写WNFT
+3.6.6编写NFTPoolBurnAndMint合约的部署脚本
 至此一共编写5个部署脚本：test-1，sourcechain-2，destchain-2
 ![alt text](image-13.png)
+3.6.7编写测试脚本，完成5个合约的单元测试
+![alt text](image-14.png)
 
 <!-- TOC -->
