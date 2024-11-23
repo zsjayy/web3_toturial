@@ -94,6 +94,46 @@ const tokenDeployment = await deployments.get("Mytoken");
 ```
 ![alt text](image.png)
 
+3、当前合约部署脚本获取之前合约的地址
+```ts
+//当前合约中设置变量，获取之前已经部署的合约的deployment
+const tokenDeployment = await deployments.get("MyToken");
+//通过deloyment.address获取合约地址
+const tokenAddr = await tokenDeployment.address;
+```
+![alt text](image-11.png)
+
+4、一个完整的部署脚本（参考用）
+```js
+const{ getNamedAccounts } = require("hardhat")
+moudle.exports = async({getNamedAccounts, deployments}) => {
+    const {firstAccount} = getNameAccounts()
+    const {deploy,log} = deployments
+
+    log("NFTPoolLockAndRelease contract deploying...")
+    //合约部署需要参数_router、_link、_nftAddr
+    const ccipSimulatorDeployment = await deployments.get("CCIPLocalSimulator")
+    //获得CCIP的对象（就是在0_deploy_ccip_simulator.js部署后才能获得），方便后面调用CCIP中的函数
+    const ccipSimulator = await ethers.getContractAt("CCIPLocalSimulator",ccipSimulatorDeployment.address)
+    //下面开始调用CCIP中的函数，获取需要的东西
+    const ccipConfig = await ccipSimulator.configuretion()
+    const sourceChainRouter = ccipConfig.sourceRouter_
+    const linkTokenAddr = ccipConfig.linkToken_
+    const nftDeployment = await deployments.get("MyToken")
+    const nftAddr = nftDeployment.address
+    await deploy("NFTPoolLockAndRelease",{
+        cotract: "NFTPoolLockAndRelease",
+        from: firstAccount,
+        log: true,
+        //这里的传参数_router、_link、_nftAddr
+        args:[sourceChainRouter,linkTokenAddr,nftAddr]
+    })
+    log("NFTPoolLockAndRelease contract deployed")
+}
+
+moudle.exports.tags = ["sourcechain","all"]
+```
+
 # 第三部分 跨链应用
 ## 第一节 去中心化存储
 ### 步骤
@@ -178,9 +218,10 @@ require("hardhat-deploy-ethers");
 3.4编写部署脚本
 3.4.1编写MyToken合约部署脚本
 ```js
-moudle.exports = async({getNameAccounts, deployments}) => {
-    const firstAccount = await getNameAccounts()
-    const {deploy, log} = await deployments()
+const { getNamedAccounts } = require("hardhat")
+moudle.exports = async({getNamedAccounts, deployments}) => {
+    const {firstAccount} = await getNameAccounts()
+    const {deploy, log} = deployments
 
     log("nft contract is deploying")
 
@@ -206,5 +247,13 @@ npm install -D @chainlink/local
 3.5.2编写合约CCIPSimulator.sol引入CCIP的mock合约CCIPLocalSimulator
 ![alt text](image-10.png)
 3.5.3编写CCIPSimulator.sol合约的部署脚本
+3.5.4编写MyToken合约的部署脚本
+3.5.5编写NFTPoolLockAndRelease合约的部署脚本
+由于需要三个参数_router、_link、_nftAddr，正好由编写的CCIPSimulator合约引入的mock合约CCIPLocalSimulator提供
+![alt text](image-12.png)
+3.5.6编写WNFT
+3.5.7编写NFTPoolBurnAndMint合约的部署脚本
+至此一共编写5个部署脚本：test-1，sourcechain-2，destchain-2
+![alt text](image-13.png)
 
 <!-- TOC -->
