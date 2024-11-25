@@ -291,4 +291,23 @@ npm install -D @chainlink/local
 3.6.7编写测试脚本，完成5个合约的单元测试
 ![alt text](image-14.png)
 
+3.7设置部署网络--部署到测试网络
+3.7.1新建helper-hardhat-config.js，并在部署脚本中导入
+由于nft、wnft无论什么网络都需要部署，所以不用导入；两个pool由于测试使用的是mock，里面的参数会根据网络的不通而变，所以要导入并进行判断
+![alt text](image-15.png)
+![alt text](image-16.png)
+3.8.2脚本中导入networkConfig，根据网络进行参数的读取
+![alt text](image-17.png)
+3.8.3设置私钥
+通过env-enc方式对私钥进行加密：
+i、进入MATAMASK找到一个账户，查看用户详情查看私钥
+ii、进入Alchemy找到所需的测试网络
+![alt text](image-18.png)
+iii、完成设置
+![alt text](image-19.png)
+3.8.4进行部署
+```shell
+//--network [要部署的网络] --tags [要部署的合约]
+npx hardhat deploy --network sepolia --tags sourcechain
+```
 <!-- TOC -->
