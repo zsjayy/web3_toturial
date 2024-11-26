@@ -296,18 +296,55 @@ npm install -D @chainlink/local
 由于nft、wnft无论什么网络都需要部署，所以不用导入；两个pool由于测试使用的是mock，里面的参数会根据网络的不通而变，所以要导入并进行判断
 ![alt text](image-15.png)
 ![alt text](image-16.png)
-3.8.2脚本中导入networkConfig，根据网络进行参数的读取
+3.7.2脚本中导入networkConfig，根据网络进行参数的读取
 ![alt text](image-17.png)
-3.8.3设置私钥
+3.7.3设置私钥
 通过env-enc方式对私钥进行加密：
 i、进入MATAMASK找到一个账户，查看用户详情查看私钥
 ii、进入Alchemy找到所需的测试网络
 ![alt text](image-18.png)
 iii、完成设置
 ![alt text](image-19.png)
-3.8.4进行部署
+3.7.4进行部署
 ```shell
 //--network [要部署的网络] --tags [要部署的合约]
 npx hardhat deploy --network sepolia --tags sourcechain
 ```
+在两个网络上部署合约（sepolia、amoy），所以两个网络上都需要有代币用以支付gas
+![alt text](image-20.png)
+![alt text](image-21.png)
+3.8hardhat自定义任务task
+3.8.1新建task/mint-nft.js
+3.8.2编写脚本
+```js
+// const { getNamedAccounts } = require("hardhat");
+const { task } = require("hardhat/config");
+
+task("mint-nft").setAction(async(taskArgs, hre) => {
+    const { firstAccount } = await getNamedAccounts()
+    const nft = await ethers.getContract("MyToken", firstAccount)
+
+    console.log("ntf contract address is:${nft.target}")
+
+    console.log("nft contract deploying....")
+    const mintTx = await nft.safeMint(firstAccount)
+    await mintTx.wait(6)
+
+    const tokenAmount = nft.totalSupply()
+    const tokenId = await tokenAmount - 1n
+    console.log("nft minted,tokenId is ${tokenId}")
+})
+
+module.exports = {}
+```
+3.8.3新建index.js，导入新建的脚本
+```js
+exports.mintNft = require("./mint-nft")
+exports.mintNft = require("./check-nft")
+```
+3.8.4在harhat.config.js文件中导入task
+```js
+require("./task");
+```
+![alt text](image-22.png)
 <!-- TOC -->
