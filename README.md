@@ -199,6 +199,7 @@ filebase是基于ipfs的去中心化存储平台
 跨链流程
 ![alt text](image-7.png)
 ### NFT跨链代码演示
+#### 跨链代码合约
 通过第二种方法来实现跨链操作
 在第一节中我们已经在sepolia链上mint了一个NFT，根据第二种方式，我们也同样需要在B链上mint一个Wrapped的NFT
 
@@ -210,7 +211,7 @@ filebase是基于ipfs的去中心化存储平台
 
 1.3修改mint函数（对固定tokenId进行铸造，而不是进行自增）
 
-2、创建NFT POOL--完成lock--》mint，burn--》unlock
+2、创建NFT POOL--完成lock--》mint
 
 2.1创建MyToken代币合约和LockAndRelease池子
 
@@ -223,32 +224,34 @@ filebase是基于ipfs的去中心化存储平台
 2.5以上几步实现第一步（lock--》mint）
 ![alt text](image-8.png)
 
-2.6目标链通过burnAndSendNFT()，将wnft转移到当前合约中，并且进行burn
+3、进行burn--》unlock
 
-2.7burn后将tokenId的相关数据转移到lockAndRelase合约中
+3.1目标链通过burnAndSendNFT()，将wnft转移到当前合约中，并且进行burn
 
-2.8lockAndRelase合约接收到数据信息后，将tokenId从当前合约转移到newOwner中
+3.2burn后将tokenId的相关数据转移到lockAndRelase合约中
 
-2.9以上几步实现第二步（burn--》unlock）
+3.3lockAndRelase合约接收到数据信息后，将tokenId从当前合约转移到newOwner中
+
+3.4以上几步实现第二步（burn--》unlock）
 ![alt text](image-9.png)
-至此完成合约的编码
+***至此完成合约的编码***
 
-3、部署约合
+#### 合约部署（deploy）
 
-3.1分别创建4个部署脚本，对应nft、wnft、poolLockAndRelease,poolBurnAndMint
+1、分别创建4个部署脚本，对应nft、wnft、poolLockAndRelease,poolBurnAndMint
 
-3.2安装hardhat所需要的插件
+2、安装hardhat所需要的插件
 ```shell
 npm install --save-dev @nomicfoundation/hardhat-ethers ethers hardhat-deploy hardhat-deploy-ethers
 ```
-3.3hardhat.config.js中引入对应包
+3、hardhat.config.js中引入对应包
 ```shell
 require("@nomicfoundation/hardhat-ethers");
 require("hardhat-deploy");
 require("hardhat-deploy-ethers");
 ```
-3.4编写部署脚本
-3.4.1编写MyToken合约部署脚本
+4、编写部署脚本
+4.1编写MyToken合约部署脚本
 ```js
 const { getNamedAccounts } = require("hardhat")
 moudle.exports = async({getNamedAccounts, deployments}) => {
@@ -268,44 +271,45 @@ moudle.exports = async({getNamedAccounts, deployments}) => {
 
 moudle.exports.tags["sourcechain","all"]
 ```
-3.4.2编写NFTPoolLockAndRelease合约部署脚本
+4.2编写NFTPoolLockAndRelease合约部署脚本
 由于改合约的构造函数中所需的参数本地无法提供，所以需要安装一个本地的chainlink
 
-3.5chainlink-local
-3.5.1chainlink-local安装
+5、chainlink-local
+5.1chainlink-local安装
 ```shell
 npm install -D @chainlink/local
 ```
-3.6编写跨链应用合约
-3.6.1编写合约CCIPSimulator.sol引入CCIP的mock合约CCIPLocalSimulator
+6、编写跨链应用合约
+6.1编写合约CCIPSimulator.sol引入CCIP的mock合约CCIPLocalSimulator
 ![alt text](image-10.png)
-3.6.2编写CCIPSimulator.sol合约的部署脚本
-3.6.3编写MyToken合约的部署脚本
-3.6.4编写NFTPoolLockAndRelease合约的部署脚本
+6.2编写CCIPSimulator.sol合约的部署脚本
+6.3编写MyToken合约的部署脚本
+6.4编写NFTPoolLockAndRelease合约的部署脚本
 由于需要三个参数_router、_link、_nftAddr，正好由编写的CCIPSimulator合约引入的mock合约CCIPLocalSimulator提供
 ![alt text](image-12.png)
-3.6.5编写WNFT
-3.6.6编写NFTPoolBurnAndMint合约的部署脚本
+6.5编写WNFT
+6.6编写NFTPoolBurnAndMint合约的部署脚本
 至此一共编写5个部署脚本：test-1，sourcechain-2，destchain-2
 ![alt text](image-13.png)
-3.6.7编写测试脚本，完成5个合约的单元测试
+#### 合约测试（test）
+1、编写测试脚本，完成5个合约的单元测试
 ![alt text](image-14.png)
 
-3.7设置部署网络--部署到测试网络
-3.7.1新建helper-hardhat-config.js，并在部署脚本中导入
+2、设置部署网络--部署到测试网络
+2.1新建helper-hardhat-config.js，并在部署脚本中导入
 由于nft、wnft无论什么网络都需要部署，所以不用导入；两个pool由于测试使用的是mock，里面的参数会根据网络的不通而变，所以要导入并进行判断
 ![alt text](image-15.png)
 ![alt text](image-16.png)
-3.7.2脚本中导入networkConfig，根据网络进行参数的读取
+2.2脚本中导入networkConfig，根据网络进行参数的读取
 ![alt text](image-17.png)
-3.7.3设置私钥
+2.3设置私钥
 通过env-enc方式对私钥进行加密：
 i、进入MATAMASK找到一个账户，查看用户详情查看私钥
 ii、进入Alchemy找到所需的测试网络
 ![alt text](image-18.png)
 iii、完成设置
 ![alt text](image-19.png)
-3.7.4进行部署
+2.4进行部署
 ```shell
 //--network [要部署的网络] --tags [要部署的合约]
 npx hardhat deploy --network sepolia --tags sourcechain
@@ -313,9 +317,10 @@ npx hardhat deploy --network sepolia --tags sourcechain
 在两个网络上部署合约（sepolia、amoy），所以两个网络上都需要有代币用以支付gas
 ![alt text](image-20.png)
 ![alt text](image-21.png)
-3.8hardhat自定义任务task
-3.8.1新建task/mint-nft.js
-3.8.2编写脚本
+#### 合约task
+1、hardhat自定义任务task
+1.1新建task/mint-nft.js
+1.2编写脚本
 ```js
 // const { getNamedAccounts } = require("hardhat");
 const { task } = require("hardhat/config");
@@ -337,15 +342,15 @@ task("mint-nft").setAction(async(taskArgs, hre) => {
 
 module.exports = {}
 ```
-3.8.3新建index.js，导入新建的脚本
+1.3新建index.js，导入新建的脚本
 ```js
 exports.mintNft = require("./mint-nft")
 exports.mintNft = require("./check-nft")
 ```
-3.8.4在harhat.config.js文件中导入task
+1.4在harhat.config.js文件中导入task
 ```js
 require("./task");
 ```
 ![alt text](image-22.png)
-
+![alt text](image-23.png)
 <!-- TOC -->
