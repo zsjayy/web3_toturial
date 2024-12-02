@@ -164,6 +164,13 @@ const nftAddr = nftDeployment.address
 const nftDeployment = await ethers.getContract("MyToken",firstAccout)
 const nftAddr = nftDeployment.target
 ```
+8、获取当前用户的账户余额，检查是否够gas费用
+```js
+const [account] = await ethers.getSigners()
+const accountBalance = await ethers.provider.getBalance(account.address)
+或者
+const accountBalance = await ethers.provider.getBalance(firstAccount) -- 即账户的地址
+```
 
 
 # 第三部分 跨链应用
@@ -319,7 +326,9 @@ npx hardhat deploy --network sepolia --tags sourcechain
 ![alt text](image-21.png)
 #### 合约task
 1、hardhat自定义任务task
+
 1.1新建task/mint-nft.js
+
 1.2编写脚本
 ```js
 // const { getNamedAccounts } = require("hardhat");
@@ -353,4 +362,79 @@ require("./task");
 ```
 ![alt text](image-22.png)
 ![alt text](image-23.png)
+1.5仿造1.1～1.4的步骤编写lock-and-cross.js
+
+1.5.1实质上是执行NFTPoolLockAndRelease合约中的lockAndSendNFT方法，所以需要查看参数
+需要tokenId, newOwner, chainSelector, revceiver四个参数
+![alt text](image-24.png)
+1.5.2参数获取
+***tokenId***通过命令行人工传递
+```shell
+npx hardhat lock-and-cross --tokenid 0 --network sepolia
+```
+***newOwner***取值hardhat.config.js配置中的对应网络的accounts
+***chainSelector***取值为测试网Sepolia的chain selector（CCIP BLOCKCHAIN identifier）
+![alt text](image-25.png)
+***receiver***取值为目标合约NFTPoolBurnAndMint的地址
+***注意***
+![alt text](image-26.png)
+1.5.3完成lock-and-cross.js的编写
+根据lockAndCrossTx.hash值去ccip.chain.link去查询
+![alt text](image-27.png)
+1.5.4完成check-wnft.js编写--前置条件是1.5.3要完成
+```shell
+npx hardhat check-wnft --network amoy // 注意网络是amoy
+```
+![alt text](image-28.png)
+此时源链上token为0的owner发生了变化，说明跨链成功
+![alt text](image-29.png)
+
+***实际代码流程梳理***
+源链source chain
+1、MyToken铸造3个代币，tokenId为0，1，2，表现为：
+nft的token的owner：0，1，2的owner为**firstAccount**
+2、cross token to destchain
+2.1、通过源链Pool，将3个nft代币通过lockAndSendNFT将代币nft->lock，表现为：
+nft的token的owner：0，1，2的owner为**源链Pool的合约地址address**
+2.2、发送ccip通知给目标链
+
+目标链dest chain
+1、
+1.1接收到ccip的通知后，WrappedMyToken对应的铸造3个wnft代币，tokenId：0，1，2，表现为：
+wnft的token的owner：0，1，2的owner为**firstAccount**
+2、cross token to sourcechain
+2.1、通过目标链Pool，将3个wnft代币通过burnAndMintNFT将代币wnft->burn，表现为：
+wnft的token的owner：0，1，2的owner为**目标链Pool的合约地址address**
+目标链Pool
+![alt text](image-31.png)
+![alt text](image-30.png)
+***捋一遍执行过程***
+[source chain]
+源链mint2个代币
+![alt text](image-32.png)
+区块链浏览器查看代币
+![alt text](image-34.png)
+check-nft检查mint出来的代币
+![alt text](image-33.png)
+lock代币MT3、4，并通过ccip发送消息
+![alt text](image-35.png)
+![alt text](image-36.png)
+![alt text](image-37.png)
+![alt text](image-38.png)
+
+[dest chain]
+check-wnft检查目标链对应mint的wnft
+![alt text](image-39.png)
+![alt text](image-40.png)
+***check-nft检查源链nft的owner***
+![alt text](image-41.png)
+burn代币3、4，并通过ccip发送消息
+![alt text](image-42.png)
+![alt text](image-43.png)
+***check-wnft检查目标链wnft的tokenId为3、4的owner***
+![alt text](image-46.png)
+注：wnft代币tokenId为3、4被burn掉
+***check-nft检查源链nft的tokenId为3、4的owner***
+![alt text](image-45.png)
+注：代币MT中tokenId为3的owner由0x73A6ed269995a8Cc0aB4548eAffa4526402B6220(合约)-->0xAbf770B1Ac0EE5095cB330f1F520FA3dFEd78Ca6(账户firstAccount),表明MT由lock状态变为unlock状态
 <!-- TOC -->
