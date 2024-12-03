@@ -134,6 +134,109 @@ moudle.exports = async({getNamedAccounts, deployments}) => {
 moudle.exports.tags = ["sourcechain","all"]
 ```
 5、一个完成的测试脚本
+```js
+const { getNamedAccounts, ethers, deployments } = require("hardhat");
+const { expect } = require("chai");
+
+//把变量提取出来，方便后面的测试函数调用
+let firstAccount
+let ccipSimulator
+let nft
+let NFTPoolLockAndRelease
+let wnft
+let NFTPoolBurnAndMint
+let chainSelector
+before(async function(){
+    //准备变量--账号
+    firstAccount = (await getNamedAccounts()).firstAccount
+    //准备变量--合约，通过tag，部署所有合约
+    await deployments.fixture(["all"])
+    ccipSimulator = await ethers.getContract("CCIPLocalSimulator",firstAccount)
+    nft = await ethers.getContract("MyToken",firstAccount)
+    NFTPoolLockAndRelease = await ethers.getContract("NFTPoolLockAndRelease",firstAccount)
+    wnft = await ethers.getContract("WrappedMyToken",firstAccount)
+    NFTPoolBurnAndMint = await ethers.getContract("NFTPoolBurnAndMint",firstAccount)
+    const ccipConfig = await ccipSimulator.configuration()
+    console.log("ccipConfig:",ccipConfig)
+    chainSelector = ccipConfig.chainSelector_
+    console.log("chainSelector:",chainSelector)
+
+})
+
+//第一步：源链sourcechain--》目标链destchain
+describe("source chain -> dest chain test", async function(){
+    //test1--是否成功mint
+    it("test if user can mint one nft from MyToken contract successfully",
+        async function () {
+            await nft.safeMint(firstAccount)
+            const owner = await nft.ownerOf(0)
+            expect(owner).to.equal(firstAccount)    
+        }
+    )
+
+    //test2--是否将nft已经lock在源链的pool中，并通过ccip将message发送给目标链
+    it("test if nft has locked in source pool and send message to dest pool successfully",
+        async function(){
+            //await nft.transferFrom(firstAccount,NFTPoolLockAndRelease.target,0),不能直接这么用
+            //这是在测试NFTPoolLockAndRelease合约中lockAndSendNFT()函数，该函数中使用的nft.transferFrom()，调用的是MyToken合约中的transferFrom()
+            //所以NFTPoolLockAndRelease合约本身不具备转移nft的权限
+            //先授权--将id为0的nft授权给NFTPoolLockAndRelease合约（执行lockAndSendNFT所需条件一）
+            await nft.approve(NFTPoolLockAndRelease.target,0)
+            console.log("nft's approval:",await nft.approve(NFTPoolLockAndRelease.target,0))
+            //执行lockAndSentNFT需要fee（执行lockAndSendNFT所需条件二）
+            await ccipSimulator.requestLinkFromFaucet(NFTPoolLockAndRelease, ethers.parseEther("10"))
+            
+            //参考合约中的入参进行赋值uint256 tokenId, newOwner, chainSelector, revceiver
+            //lockAndSendNFT包含两个步骤：1.将nft从firstAccount转移到NFTPoolLockAndRelease合约；2.通过ccip发送消息
+            console.log("newOwner:",firstAccount)
+            console.log("chainSelector:",chainSelector)
+            
+            const receiverAddr = NFTPoolBurnAndMint.target
+            console.log("receiver:",receiverAddr)
+            await NFTPoolLockAndRelease.lockAndSendNFT(0,firstAccount,chainSelector,receiverAddr)
+            //检查是不是完成了第一步的转移
+            const owner = await nft.ownerOf(0)
+            console.log("newOwner:",owner)
+            expect(owner).to.equal(NFTPoolLockAndRelease.target)
+        }
+    )
+
+    //test3--目标链接收到并mint新的wnft
+    it("test if user can get a wrapped nft in dest chain",
+        async function(){
+            //当源链完成lockAndSendNFT后,会通过CCIP发送消息给目标链，目标链上就会mint一个wnft
+            //所以只要验证目标链上是否有id为0的wnft存在,即owner不是空值，且owner为firstAccount
+            const owner = await wnft.ownerOf(0)
+            expect(owner).to.equal(firstAccount)
+
+    })
+})
+
+//第二步：目标链destchain--》源链sourcechain
+describe("dest chain->source chain test", async function(){
+    //test4-目标链的wnft被burn掉，并通过ccip发送message给源链
+    it("test if dest chain burn wnft and send message successfully",
+        async function() {
+            //wnft当前的owner是firstAccount,合约NFTPoolBurnAndMint想要burn掉wnft需要获取approve
+            await wnft.approve(NFTPoolBurnAndMint.target,0)
+            //需要消耗fees
+            await ccipSimulator.requestLinkFromFaucet(NFTPoolBurnAndMint,ethers.parseEther("10"))
+            //调用burnAndSendNFT()，传参为tokenId, newOwner, chainSelector, revceiver
+            await NFTPoolBurnAndMint.burnAndSendNFT(0,firstAccount,chainSelector,NFTPoolLockAndRelease.target)
+            //执行完burnAndSendNFT后，目标链的池子中就没有wnft了，此时totalSupply应该为0
+            const totalSupply = await wnft.totalSupply()
+            expect(totalSupply).to.equal(0)
+        }
+    )
+    //test5-源链接收到信息后，nft被unlock
+    it("test if source nft has unlocked", 
+        async function(){
+            //检查源链当中的nft是否被unlock释放出来
+            const owner = await nft.ownerOf(0)
+            expect(owner).to.equal(firstAccount) 
+    })
+})
+```
 
 6、部署脚本中的ethers.getContractAt()和测试脚本中的ethers.getCotract()有什么区别
 ethers.getContractAt()是用于获取已经部署的合约实例args(name,address)，与其进行交互，比如部署脚本中获取前一个部署合约的地址
@@ -171,6 +274,45 @@ const accountBalance = await ethers.provider.getBalance(account.address)
 或者
 const accountBalance = await ethers.provider.getBalance(firstAccount) -- 即账户的地址
 ```
+9、如何获取mint的tokenId--在dev分支上尝试
+问题：由于burn掉的代币tokenId没有被重置，所以再次mint时tokenId会进行累加
+解决：如何获取tokenId
+方案一：通过修改MyToken.sol合约中safemint方法return tokenId来实现，如：
+```js
+    function safeMint(address to) public returns(uint256){
+        uint256 tokenId = _nextTokenId++;
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, META_DATA);
+        isTokenIdExitStill[tokenId] = true;
+        emit Minted(to,tokenId);
+        return tokenId;
+    }
+```
+对应js脚本的调用为：
+```js
+//尝试获取tokenId
+const tokenId = await nft.safeMint(firstAccount)
+console(`mint出来的tokenId为${tokenId}`)
+```
+结果日志打印出来是：mint出来的tokenId为[object][object]
+疑问：为什么mint函数返回的是个对象呢？
+解答：
+1、在智能合约中函数方法可以分为两种：***状态改变型函数(写入函数)***和**状态只读型函数**
+***状态改变型函数(写入函数)***：如转账、铸币等。它们通常返回一个包含交易信息的对象(transactionresponse)，而不是直接返回执行结果
+2、智能合约的**写入型函数**调用涉及到区块链的交易处理
+所以本合约中的safeMint函数返回类型是 uint256，它在只能合约中确实返回了tokenId。但是，智能合约函数的调用在 JavaScript 中通常是异步的，返回的是一个交易对象，而不是直接的返回值
+由此引出另外两种获取tokenId的解决方案：1、交易日志中获取；2、合约中写一个读取tokenId的只读型函数
+优化方案1：交易日志中获取
+```js
+//尝试1:通过交易日志查询到tokenId
+const mintTx = await nft.safeMint(firstAccount)
+const mintReceipt = await mintTx.wait()
+const mintReceiptString = JSON.stringify(mintReceipt,null,2)
+console.log(`合约交易信息内容是：${mintReceiptString}`)
+const tokenId = await mintReceiptString.logs[0].args.tokenId
+```
+优化方案2:合约中写一个读取tokenId的只读型函数
+
 
 
 # 第三部分 跨链应用
@@ -314,8 +456,9 @@ npm install -D @chainlink/local
 i、进入MATAMASK找到一个账户，查看用户详情查看私钥
 ii、进入Alchemy找到所需的测试网络
 ![alt text](image-18.png)
-iii、完成设置
+iii、完成设置（env-enc view 查看明文信息）
 ![alt text](image-19.png)
+
 2.4进行部署
 ```shell
 //--network [要部署的网络] --tags [要部署的合约]
