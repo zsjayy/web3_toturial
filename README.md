@@ -297,9 +297,9 @@ console(`mint出来的tokenId为${tokenId}`)
 结果日志打印出来是：mint出来的tokenId为[object][object]
 疑问：为什么mint函数返回的是个对象呢？
 解答：
-1、在智能合约中函数方法可以分为两种：***状态改变型函数(写入函数)***和**状态只读型函数**
+1）在智能合约中函数方法可以分为两种：***状态改变型函数(写入函数)***和**状态只读型函数**
 ***状态改变型函数(写入函数)***：如转账、铸币等。它们通常返回一个包含交易信息的对象(transactionresponse)，而不是直接返回执行结果
-2、智能合约的**写入型函数**调用涉及到区块链的交易处理
+2）智能合约的**写入型函数**调用涉及到区块链的交易处理
 所以本合约中的safeMint函数返回类型是 uint256，它在只能合约中确实返回了tokenId。但是，智能合约函数的调用在 JavaScript 中通常是异步的，返回的是一个交易对象，而不是直接的返回值
 由此引出另外两种获取tokenId的解决方案：1、交易日志中获取；2、合约中写一个读取tokenId的只读型函数
 优化方案1：交易日志中获取
@@ -311,8 +311,123 @@ const mintReceiptString = JSON.stringify(mintReceipt,null,2)
 console.log(`合约交易信息内容是：${mintReceiptString}`)
 const tokenId = await mintReceiptString.logs[0].args.tokenId
 ```
-优化方案2:合约中写一个读取tokenId的只读型函数
+2.1）问题：这个打印的mintReceiptString里面没有看到tokenId的相关信息,（即使追加event没有对应信息）
+```js
+event Minted(address indexed to, uint256 indexed tokenId);
 
+function safeMint(address to) public returns(uint256){
+    uint256 tokenId = _nextTokenId++;
+    _safeMint(to, tokenId);
+    _setTokenURI(tokenId, META_DATA);
+    isTokenIdExitStill[tokenId] = true;
+    emit Minted(to,tokenId);
+    return tokenId;
+    }
+```
+打印输出结果：
+```text
+receipt的打印输出为:{
+  "_type": "TransactionReceipt",
+  "blockHash": "0x7b712ac81f2ca097a18ce7167c49d670e10057169cf85fca38fd7f3746205405",
+  "blockNumber": 2,
+  "contractAddress": null,
+  "cumulativeGasUsed": "216130",
+  "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "gasPrice": "1786313340",
+  "blobGasUsed": null,
+  "blobGasPrice": null,
+  "gasUsed": "216130",
+  "hash": "0x8ef224ccbe646fbc7c5bb89e5ab0a0e663abdb5174e212e2e78932d3ea762f0a",
+  "index": 0,
+  "logs": [
+    {
+      "_type": "log",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "blockHash": "0x7b712ac81f2ca097a18ce7167c49d670e10057169cf85fca38fd7f3746205405",
+      "blockNumber": 2,
+      "data": "0x",
+      "index": 0,
+      "topics": [
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "transactionHash": "0x8ef224ccbe646fbc7c5bb89e5ab0a0e663abdb5174e212e2e78932d3ea762f0a",
+      "transactionIndex": 0
+    },
+    {
+      "_type": "log",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "blockHash": "0x7b712ac81f2ca097a18ce7167c49d670e10057169cf85fca38fd7f3746205405",
+      "blockNumber": 2,
+      "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "index": 1,
+      "topics": [
+        "0xf8e1a15aba9398e019f0b49df1a4fde98ee17ae345cb5f6b5e2c27f5033e8ce7"
+      ],
+      "transactionHash": "0x8ef224ccbe646fbc7c5bb89e5ab0a0e663abdb5174e212e2e78932d3ea762f0a",
+      "transactionIndex": 0
+    },
+    {
+      "_type": "log",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "blockHash": "0x7b712ac81f2ca097a18ce7167c49d670e10057169cf85fca38fd7f3746205405",
+      "blockNumber": 2,
+      "data": "0x",
+      "index": 2,
+      "topics": [
+        "0x30385c845b448a36257a6a1716e6ad2e1bc2cbe333cde1e69fe849ad6511adfe",
+        "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "transactionHash": "0x8ef224ccbe646fbc7c5bb89e5ab0a0e663abdb5174e212e2e78932d3ea762f0a",
+      "transactionIndex": 0
+    }
+  ],
+  "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000040020000000000000100000800000000000000000080000010000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000002000000000000000000000000000008000000042000000200000000000000000000000002040000000000000000020000000000000000000200000000000000000000000000000000000000000000000",
+  "status": 1,
+  "to": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+}
+```
+原因：
+hardhat测试框架中，默认情况下，交易回执只显示原始的日志（logs），不会自动解码事件。你需要手动解码事件日志。
+```js
+    nft = await ethers.getContract("MyToken",firstAccount)
+    contractABI = [
+        "event Minted(address indexed to, uint256 indexed tokenId)",
+        "function safeMint(address to) public returns (uint256)"
+    ];
+    // iface = new ethers.utils.Interface(contractABI);  由于导入包依赖的问题，这一步无法正确执行
+
+    const filter = nft.filters.Minted(null, null); // 监听所有 Minted 事件
+    const logs = await nft.queryFilter(filter);
+    console.log("Minted事件的日志: ", logs);
+
+    logs.forEach((log) => {
+    const parsedLog = iface.parseLog(log);
+    console.log("解析后的事件:", parsedLog);
+    });
+```
+优化方案2:合约中写一个读取tokenId的**只读型函数**
+```js
+// 新增函数以获取指定地址的所有 Token IDs  
+function getTokenIdsByOwner(address owner) public view returns (uint256[] memory) {  
+    uint256 balance = balanceOf(owner);  
+    uint256[] memory tokenIds = new uint256[](balance);  
+
+    for (uint256 i = 0; i < balance; i++) {  
+        tokenIds[i] = tokenOfOwnerByIndex(owner, i);  
+    }  
+
+    return tokenIds;  
+} 
+```
+![alt text](image-47.png)
+10、如何确认合约函数调用时链上交易所需的gas费用--待更新
+
+11、会存在修改Mytoken.sol合约后需要重新部署，而重新部署后合约的地址就会更改，旧代币无法同步到新合约中，如何避免这个问题呢？
+***代理合约***
 
 
 # 第三部分 跨链应用
@@ -580,4 +695,7 @@ burn代币3、4，并通过ccip发送消息
 ***check-nft检查源链nft的tokenId为3、4的owner***
 ![alt text](image-45.png)
 注：代币MT中tokenId为3的owner由0x73A6ed269995a8Cc0aB4548eAffa4526402B6220(合约)-->0xAbf770B1Ac0EE5095cB330f1F520FA3dFEd78Ca6(账户firstAccount),表明MT由lock状态变为unlock状态
+## 第三节 代理合约
+在跨链应用中尝试解决tokenId问题时，引起的合约修改后重新部署，合约的地址会发生变化，从而旧合约地址铸造的代币也无法同步到新的合约中
+为了使修改合约而不影响代币，提出**代理合约**
 <!-- TOC -->
